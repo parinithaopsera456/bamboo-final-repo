@@ -1,0 +1,87 @@
+name: Build the Rocket
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  schedule:
+    - cron: '*/60 * * * *' # Equivalent to Bamboo polling every 60 minutes
+
+jobs:
+  build_and_package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # Equivalent to fetch-all: true in Bamboo
+      - name: Set up PowerShell
+        uses: actions/setup-pwsh@v2
+      - name: Build Scripts
+        run: pwsh bootstrap.ps1
+
+  run_quality_tools:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Set up PowerShell
+        uses: actions/setup-pwsh@v2
+      - name: Run Quality Tools
+        run: pwsh bootstrap.ps1 -Target Quality
+
+  run_oss_scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Set up PowerShell
+        uses: actions/setup-pwsh@v2
+      - name: Run OSS Scan
+        run: pwsh bootstrap.ps1 -Target OpenSourceSoftwareScan
+
+  run_security_tools:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Set up PowerShell
+        uses: actions/setup-pwsh@v2
+      - name: Run Security Tools
+        run: pwsh bootstrap.ps1 -Target Security
+
+  publish_artifacts:
+    runs-on: ubuntu-latest
+    needs: [build_and_package]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Set up PowerShell
+        uses: actions/setup-pwsh@v2
+      - name: Publish Packages
+        run: pwsh bootstrap.ps1 -Target Publish
+
+env:
+  BLACKDUCK_HUB_HOST: ${{ secrets.BLACKDUCK_HUB_HOST }}
+  BLACKDUCK_HUB_PROJECT_ID: ${{ secrets.BLACKDUCK_HUB_PROJECT_ID }}
+  BLACKDUCK_HUB_PROJECT_NAME: ${{ secrets.BLACKDUCK_HUB_PROJECT_NAME }}
+  BLACKDUCK_HUB_USERNAME: ${{ secrets.BLACKDUCK_HUB_USERNAME }}
+  DOCKER_ARTIFACTORY_SOURCEURL_STABLE: ${{ secrets.DOCKER_ARTIFACTORY_SOURCEURL_STABLE }}
+  DOCKER_ARTIFACTORY_SOURCEURL_UNSTABLE: ${{ secrets.DOCKER_ARTIFACTORY_SOURCEURL_UNSTABLE }}
+  DOCKER_DEPLOY_USER: ${{ secrets.DOCKER_DEPLOY_USER }}
+  DOCKER_USER: ${{ secrets.DOCKER_USER }}
+  GENERIC_REPORTS_SOURCEURL_STABLE: ${{ secrets.GENERIC_REPORTS_SOURCEURL_STABLE }}
+  GENERIC_REPORTS_SOURCEURL_UNSTABLE: ${{ secrets.GENERIC_REPORTS_SOURCEURL_UNSTABLE }}
+  NUGET_DEPLOY_SOURCEURL_STABLE: ${{ secrets.NUGET_DEPLOY_SOURCEURL_STABLE }}
+  NUGET_DEPLOY_SOURCEURL_UNSTABLE: ${{ secrets.NUGET_DEPLOY_SOURCEURL_UNSTABLE }}
+  OCTOPUS_PROJECTNAME: ${{ secrets.OCTOPUS_PROJECTNAME }}
+  OCTOPUS_SERVER: ${{ secrets.OCTOPUS_SERVER }}
+  TWISTLOCK_SAASOPS_ACCESSKEYID: ${{ secrets.TWISTLOCK_SAASOPS_ACCESSKEYID }}
+  TWISTLOCK_SAASOPS_SA_NAME: ${{ secrets.TWISTLOCK_SAASOPS_SA_NAME }}
+  TWISTLOCK_SAASOPS_SERVERURL: ${{ secrets.TWISTLOCK_SAASOPS_SERVERURL }}
+  TWISTLOCK_SERVERPORT: ${{ secrets.TWISTLOCK_SERVERPORT }}
+  TWISTLOCK_SERVERURL: ${{ secrets.TWISTLOCK_SERVERURL }}
+  TWISTLOCK_USERNAME: ${{ secrets.TWISTLOCK_USERNAME }}
