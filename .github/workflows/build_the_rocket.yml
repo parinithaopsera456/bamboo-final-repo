@@ -1,0 +1,105 @@
+name: mars/build_the_rocket
+on:
+  push:
+#   # The shortest interval you can run scheduled workflows is once every 5 minutes.
+#   period: '60'
+#   description: polling
+env:
+  BLACKDUCK_HUB_HOST: https://blackduck.swtools.honeywell.com
+  BLACKDUCK_HUB_PASSWORD: "${{ secrets.BLACKDUCK_HUB_PASSWORD }}"
+  BLACKDUCK_HUB_PROJECT_ID: 1cc47fd3-3953-48b3-acd7-38a4ac48f17e
+  BLACKDUCK_HUB_PROJECT_NAME: HBT-BMS-bmstools-app.deployment
+  BLACKDUCK_HUB_USERNAME: sv_nygvfvoa_user
+  DOCKER_ARTIFACTORY_SOURCEURL_STABLE: bmstools-docker-stable-local.artifactory-na.honeywell.com
+  DOCKER_ARTIFACTORY_SOURCEURL_UNSTABLE: bmstools-docker-unstable-local.artifactory-na.honeywell.com
+  DOCKER_DEPLOY_PASSWORD: "${{ secrets.DOCKER_DEPLOY_PASSWORD }}"
+  DOCKER_DEPLOY_USER: sv_nygvfvoa_user
+  DOCKER_PASSWORD: "${{ secrets.DOCKER_PASSWORD }}"
+  DOCKER_USER: sv_nygvfvoa_user
+  GENERIC_REPORTS_API_PASSWORD: "${{ secrets.GENERIC_REPORTS_API_PASSWORD }}"
+  GENERIC_REPORTS_SOURCEURL_STABLE: https://artifactory-na.honeywell.com/artifactory/bmstools-reports-generic-stable-local
+  GENERIC_REPORTS_SOURCEURL_UNSTABLE: https://artifactory-na.honeywell.com/artifactory/bmstools-reports-generic-unstable-local
+  NUGET_DEPLOY_API_PASSWORD: "${{ secrets.NUGET_DEPLOY_API_PASSWORD }}"
+  NUGET_DEPLOY_SOURCEURL_STABLE: https://artifactory-na.honeywell.com/artifactory/api/nuget/bmstools-deploy-nuget-stable-local
+  NUGET_DEPLOY_SOURCEURL_UNSTABLE: https://artifactory-na.honeywell.com/artifactory/api/nuget/bmstools-deploy-nuget-unstable-local
+  OCTOPUS_PASSWORD: "${{ secrets.OCTOPUS_PASSWORD }}"
+  OCTOPUS_PROJECTNAME: bmstools-app-deployment
+  OCTOPUS_SERVER: https://octopus.honeywell.com
+  TWISTLOCK_PASSWORD: "${{ secrets.TWISTLOCK_PASSWORD }}"
+  TWISTLOCK_SAASOPS_ACCESSKEYID: 0aef0390-088c-4ece-ab21-46dbd16bd01c
+  TWISTLOCK_SAASOPS_SA_NAME: sv_nygvfvoa_dahmzlkz_user
+  TWISTLOCK_SAASOPS_SECRETKEY: "${{ secrets.TWISTLOCK_SAASOPS_SECRETKEY }}"
+  TWISTLOCK_SAASOPS_SERVERURL: https://us-west1.cloud.twistlock.com/us-4-161030324
+  TWISTLOCK_SERVERPORT: '443'
+  TWISTLOCK_SERVERURL: https://twistlock.swtools.honeywell.com
+  TWISTLOCK_USERNAME: sv_nygvfvoa_user
+jobs:
+  Build-Build-and-Package:
+    runs-on:
+      - self-hosted
+      - build.agent.os-linux
+      - build.farm-azure
+      - build.agent.size-small
+    steps:
+    - uses: actions/checkout@v4.1.0
+    - name: Build Scripts
+      run: pwsh bootstrap.ps1
+    - uses: actions/upload-artifact@v4.1.0
+      with:
+        name: MARS-ROCKET_Packages
+        path: "**"
+        if-no-files-found: ignore
+  Build-Run-Quality-Tools:
+    runs-on:
+      - self-hosted
+      - build.agent.os-linux
+      - build.farm-azure
+      - build.agent.size-small
+    steps:
+    - uses: actions/checkout@v4.1.0
+    - name: Run Quality Tools
+      run: pwsh bootstrap.ps1 -Target Quality
+    - uses: actions/upload-artifact@v4.1.0
+      with:
+        name: MARS-ROCKET_Coverage Artifacts
+        path: "*.*"
+        if-no-files-found: ignore
+  Build-Run-OSS-Scan:
+    runs-on:
+      - self-hosted
+      - build.agent.os-linux
+      - build.farm-azure
+      - build.agent.size-small
+    steps:
+    - uses: actions/checkout@v4.1.0
+    - name: Run OSS Scan
+      run: pwsh bootstrap.ps1 -Target OpenSourceSoftwareScan
+  Build-Run-Security-Tools:
+    runs-on:
+      - self-hosted
+      - build.agent.os-linux
+      - build.farm-azure
+      - build.agent.size-small
+    steps:
+    - uses: actions/checkout@v4.1.0
+    - name: Run Security Tools
+      run: pwsh bootstrap.ps1 -Target Security
+  Publish-Publish-Artifacts:
+    runs-on:
+      - self-hosted
+      - build.agent.os-linux
+      - build.farm-azure
+      - build.agent.size-small
+    needs:
+    - Build-Build-and-Package
+    - Build-Run-Quality-Tools
+    - Build-Run-OSS-Scan
+    - Build-Run-Security-Tools
+    steps:
+    - uses: actions/download-artifact@v4.1.0
+      with:
+        name: MARS-ROCKET_Packages
+        path: BuildArtifacts
+    - uses: actions/checkout@v4.1.0
+    - name: Publish Packages
+      run: pwsh bootstrap.ps1 -Target Publish
